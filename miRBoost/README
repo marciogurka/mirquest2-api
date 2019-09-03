@@ -1,0 +1,53 @@
+# Name: miRBoost
+# Version: 1.0
+# Date: 11-20-2013
+# Authors: Van Du Tran et al.
+# Description: pre-miRNA predictor
+
+
+System requirements:
+  - miRBoost has been developped for Unix platform.
+  - Perl and Java VM are required.
+
+Unpacking
+  unzip miRBoost.zip
+
+Installation
+  Directory miRBoost contains executable files to run the program. Should you would like to 
+  recompile,
+  
+	cd miRBoost
+  	make
+
+Execution
+  1. Calculate 187 features for input sequences
+     -L 400: upper bound for all sequence sizes in input fasta. It can be appropriately 
+	reduced to reduce running time.
+     -D -1|1: class label for all sequences. It is required to treat positive and negative
+	samples separately, then join them into a unique training or testing file.
+
+  	./gFoldmulti/gFold -s wholepos_nobreak_400_97.fa -L 400 -DATA 1  > wholepos_187.txt
+  	./gFoldmulti/gFold -s wholeneg_nobreak_400_97.fa -L 400 -DATA -1 > wholeneg_187.txt
+  	cat wholepos_187.txt wholeneg_187.txt > train_187.txt
+	head -100 wholepos_187.txt > test_187.txt
+	head -100 wholeneg_187.txt >> test_187.txt
+
+  2. Extract selected features from all features.
+     SELECT="whole_selected_features.txt" for the cross-species training data
+     SELECT="human_selected_features.txt" for the human training data
+     If a new training set is used to build the model, you may follow our feature selection
+     process to select the appropriate features.
+
+  	./src/extractfeature.pl -s $SELECT -i train_187.txt -o train_selected.txt  
+	./src/extractfeature.pl -s $SELECT -i test_187.txt -o test_selected.txt
+
+  3. Run miRBoost, with delta = 0.25 (by default)
+  	
+	./miRBoost -i test_selected.txt -t train_selected.txt -d 0.25
+
+Results
+  The classification result is found in "results.txt". Each line represents the label of the 
+  corresponding sequence.
+
+References:
+  Tran et al. miRBoost: boosting support vector machines for microRNA precursor classification, RNA, 2015.
