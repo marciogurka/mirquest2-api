@@ -13,6 +13,7 @@ from django.core.mail import EmailMultiAlternatives
 
 class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
     tools = serializers.PrimaryKeyRelatedField(queryset=Tool.objects.all(), many=True)
+
     class Meta:
         model = RequestRecord
         fields = [
@@ -116,6 +117,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
 
 class RequestInfoSerializer(serializers.ModelSerializer):  # forms.ModelForm
     tool = ToolSerializer(many=False, read_only=True)
+    request = RequestRecordSerializer(many=False, read_only=True)
 
     class Meta:
         model = RequestInfo
