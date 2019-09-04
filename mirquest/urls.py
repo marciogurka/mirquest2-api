@@ -15,10 +15,13 @@ Including another URLconf
 """
 from django.conf.urls import url, include
 from django.contrib import admin
+from django.conf import settings
+from django.views.static import serve
 
 urlpatterns = [
     url('admin/', admin.site.urls),
     # url(r'^api/auth/login/$', obtain_jwt_token, name='api-login'),
     url(r'^api/request_records/', include(('request_records.api.urls', 'api-request-records'), namespace='api-request-records')),
     url(r'^api/tools/', include(('tools.api.urls', 'api-tools'), namespace='api-tools')),
+    url(r'^files/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT})
 ]
