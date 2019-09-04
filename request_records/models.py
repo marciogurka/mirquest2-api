@@ -21,11 +21,11 @@ class RequestRecord(models.Model):
     tools = models.ManyToManyField(Tool, through="RequestInfo")
     file = models.FileField(default=None, null=True, upload_to=get_upload_path) 
 
-    def filename(self):
+    def get_filename(self):
         return os.path.basename(self.file.name)
     
     def pathname(self):
-        return os.path.abspath(self.file.name)
+        return os.path.dirname(self.file.name)
 
 
 class RequestInfo(models.Model):

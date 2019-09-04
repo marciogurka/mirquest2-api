@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
 
-
 class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
     tools = serializers.PrimaryKeyRelatedField(queryset=Tool.objects.all(), many=True)
     class Meta:
@@ -59,8 +58,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
         instance.endDate = validated_data.get('endDate', instance.endDate)
         instance.totalTime = validated_data.get('totalTime', instance.totalTime)
         instance.file = validated_data.get('file', instance.file)
-        if(instance.filename != instance.fileName):
-            instance.fileName = instance.filename
+        if(instance.fileName != instance.get_filename()):
+            instance.fileName = instance.get_filename()
         instance.save()
         if(instance.status == "PROCESSING"):
             self.startToolProcessFile(instance)
@@ -73,11 +72,10 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
             if(tool.pk == 1):
                 filepath = request_record.pathname()
                 path = Path(filepath).resolve()
-                output_file_name = str(path).split(".fa")[0] + "_out.fa"
-                command = "./mirinho -s=0 -o=" + output_file_name + " -i " + str(path)
-                print(command)
-                print(str(path))
-                mirinhoResponse = subprocess.run(["cd mirinho/", command], shell=True, capture_output=True)
+                output_file_name = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_out.fa"
+                input_file_name = str(path) + "/" + request_record.fileName
+                command = "cd mirinho/ && ./mirinho -s=0 -o '" + output_file_name + "' -i '" + input_file_name + "'"
+                mirinhoResponse = subprocess.run([command], shell=True, capture_output=True)
                 if(mirinhoResponse.returncode == 0):
                     # get all request info about that request
                     requests_info = RequestInfo.objects.all().filter(request=request_record)
@@ -108,14 +106,13 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                     subject, from_email, to = 'Your Mirinho request has just finished!', 'marciogurka@marciogurka.com', 'marciogurkajr@gmail.com'
                     text_content = ''
                     html_content = '<p>Erro na request mirinho - código: <strong>' + \
-                        str(request_info.requestCode) + '</strong></p>' + \
-                        '<p>stdout: ' + mirinhoResponse.stdout + '</p>' + \
-                        '<p>stderr: ' + mirinhoResponse.stderr + '</p>'
+                        str(request_record.code) + '</strong></p>' + \
+                        '<p>stdout: ' + str(mirinhoResponse.stdout) + '</p>' + \
+                        '<p>stderr: ' + str(mirinhoResponse.stderr) + '</p>'
                     msg = EmailMultiAlternatives(
                         subject, text_content, from_email, [to])
                     msg.attach_alternative(html_content, "text/html")
                     msg.send()
-        print(request_record.code)
 
 class RequestInfoSerializer(serializers.ModelSerializer):  # forms.ModelForm
     tool = ToolSerializer(many=False, read_only=True)
@@ -135,6 +132,4 @@ class RequestInfoSerializer(serializers.ModelSerializer):  # forms.ModelForm
         ]
 
         read_only_fields = ["pk", "createdDate"]
-#converts to json
-#validates the data passed
     
