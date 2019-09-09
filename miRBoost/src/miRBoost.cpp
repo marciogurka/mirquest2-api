@@ -1098,7 +1098,7 @@ int main(int argc, char **argv) {
 		cout<<labels_test.at(i)+1;
 	cout<<endl;
 
-	output_file.open("results." + to_string(getpid()) + ".txt");
+	output_file.open("results." + std::to_string(getpid()) + ".txt");
 	for (unsigned int i=0; i<NB_SAMPLES_TEST; i++)
 		output_file<<sign(decision_test.at(i))<<endl;
 	output_file.close();
