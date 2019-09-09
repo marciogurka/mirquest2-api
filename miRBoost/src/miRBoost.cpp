@@ -908,14 +908,6 @@ void training(int flag_method, char *pPATH, char *training_file, size_t *NB_ITER
 	feature_file.close();
 }
 
-template <typename T>
-std::string to_string(T value)
-{
-	std::ostringstream os ;
-	os << value ;
-	return os.str() ;
-}
-
 /*
  * \brief Main function
  */
