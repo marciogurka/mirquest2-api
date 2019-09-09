@@ -908,6 +908,14 @@ void training(int flag_method, char *pPATH, char *training_file, size_t *NB_ITER
 	feature_file.close();
 }
 
+template <typename T>
+std::string to_string(T value)
+{
+	std::ostringstream os ;
+	os << value ;
+	return os.str() ;
+}
+
 /*
  * \brief Main function
  */
@@ -1098,7 +1106,7 @@ int main(int argc, char **argv) {
 		cout<<labels_test.at(i)+1;
 	cout<<endl;
 
-	output_file.open("results." + std::to_string(getpid()) + ".txt");
+	output_file.open("results." + to_string(getpid()) + ".txt");
 	for (unsigned int i=0; i<NB_SAMPLES_TEST; i++)
 		output_file<<sign(decision_test.at(i))<<endl;
 	output_file.close();
