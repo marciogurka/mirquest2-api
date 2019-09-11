@@ -5,7 +5,9 @@ from tools.models import Tool
 from tools.api.serializers import ToolSerializer
 
 import json
+import re
 import subprocess
+import os 
 from pathlib import Path
 from datetime import datetime, timezone
 from django.core.mail import send_mail
@@ -104,12 +106,99 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                         request_record.totalTime = (datetime.min + total_time).time()
                         request_record.save()
                 else:
-                    subject, from_email, to = 'Your Mirinho request has just finished!', 'marciogurka@marciogurka.com', 'marciogurkajr@gmail.com'
+                    subject, from_email, to = 'Erro na request mirinho!', 'marciogurka@marciogurka.com', 'marciogurkajr@gmail.com'
                     text_content = ''
                     html_content = '<p>Erro na request mirinho - código: <strong>' + \
                         str(request_record.code) + '</strong></p>' + \
                         '<p>stdout: ' + str(mirinhoResponse.stdout) + '</p>' + \
                         '<p>stderr: ' + str(mirinhoResponse.stderr) + '</p>'
+                    msg = EmailMultiAlternatives(
+                        subject, text_content, from_email, [to])
+                    msg.attach_alternative(html_content, "text/html")
+                    msg.send()
+            elif(tool.id == 2): 
+                # set file names
+                filepath = request_record.pathname()
+                path = Path(filepath).resolve()
+                input_file_name = str(path) + "/" + request_record.fileName
+                example_pos_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_pos.txt"
+                example_neg_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_neg.txt"
+                example_train_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_train.txt"
+                example_train_extracted_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_train_extracted.txt"
+                example_test_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_test.txt"
+                example_test_extracted_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_test_extracted.txt"
+                # build commands
+                command0 = "cd miRBoost/"
+                command1 = "./gFoldmulti/gFold -s '" + input_file_name + "' -L 400 -DATA 1 > '" + example_pos_fileName + "'"
+                command2 = "./gFoldmulti/gFold -s '" + input_file_name + "' -L 400 -DATA -1 > '" + example_neg_fileName + "'"
+                command3 = "cat '" + example_pos_fileName + "' '" + example_neg_fileName + "' > '" + example_train_fileName + "'"
+                command4 = "head -100 '" + example_pos_fileName + "' > '" + example_test_fileName + "'"
+                command5 = "head -100 '" + example_neg_fileName + "' >> '" + example_test_fileName + "'"
+                # cmds for humans features
+                command6 = "./src/extractfeature.pl -s human_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_train_extracted_fileName + "'"
+                command7 = "./src/extractfeature.pl -s human_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_test_extracted_fileName + "'"
+                command8 = "./miRBoost -i '" + example_test_extracted_fileName + "' -t '" + example_train_extracted_fileName + "' -d 0.25"
+                fullComand = command0 + " ; " + command1 + " ; " + command2 + " ; " + command3 + " ; " + command4 + " ; " + command5 + " ; " + command6 + " ; " + command7 + " ; " + command8 + " ; "
+                mirboostHumanResponse = subprocess.run([fullComand], shell=True, capture_output=True)
+                # cmds for whole features
+                # command6 = "./src/extractfeature.pl -s whole_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_train_extracted_fileName + "'"
+                # command7 = "./src/extractfeature.pl -s whole_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_test_extracted_fileName + "'"
+                # command8 = "./miRBoost -i '" + example_test_extracted_fileName + "' -t '" + example_train_extracted_fileName + "' -d 0.25"
+                # fullComand = command1 + " ; " + command2 + " ; " + command3 + " ; " + command4 + " ; " + command5 + " ; " + command6 + " ; " + command7 + " ; " + command8 + " ; "
+                # mirboostWholeResponse = subprocess.run([fullComand], shell=True, capture_output=True)
+                if(mirboostHumanResponse.returncode == 0):
+                    # move result file 
+                    pattern = "results.*.txt"
+                    matches = re.findall(pattern, str(mirboostHumanResponse.stdout.decode('utf-8')))
+                    resultFileName = str(matches[0])
+                    command0 = "cd miRBoost/"
+                    rnCommand = "mv '" + resultFileName + "' result_mirboost_" + str(request_record.code) + ".txt"
+                    mvCommand = "mv result_mirboost_" + str(request_record.code) + ".txt " + str(path) + ""
+                    mvCommandResponse = subprocess.run([command0 + ";" + rnCommand + ";" + mvCommand], shell=True, capture_output=True)
+                    if(mvCommandResponse.returncode == 0): 
+                        # get all request info about that request
+                        requests_info = RequestInfo.objects.all().filter(request=request_record)
+                        # get the request info about mirboost
+                        request_info = next((x for x in requests_info if x.tool == tool), None)
+                        if(request_info != None):
+                            request_info.status = "PROCESSED"
+                            request_info.endDate = datetime.now(timezone.utc)
+                            total_time = request_info.endDate - request_info.createdDate
+                            request_info.totalTime = (datetime.min + total_time).time()
+                            request_info.save()
+                            # sending email
+                            subject, from_email, to = 'Your miRBoost request has just finished!', 'marciogurka@marciogurka.com', request_record.userEmail
+                            text_content = ''
+                            html_content = '<p>Your miRBoost request has just finished processing. Check out the result using the code below!</p><p>Your request code: <strong>' + str(request_info.requestCode) + '</strong></p>'
+                            msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
+                            msg.attach_alternative(html_content, "text/html")
+                            msg.send()
+                        #if there is no more request info in PROCESSING status, update the request
+                        request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
+                        if(request_info_not_finished == None):
+                            request_record.status = "PROCESSED"
+                            request_record.endDate = datetime.now(timezone.utc)
+                            total_time = request_record.endDate - request_record.createdDate
+                            request_record.totalTime = (datetime.min + total_time).time()
+                            request_record.save()
+                    else: 
+                        subject, from_email, to = 'Erro na request mirboost!', 'marciogurka@marciogurka.com', 'marciogurkajr@gmail.com'
+                        text_content = ''
+                        html_content = '<p>Erro na request mirboost - código: <strong>' + \
+                            str(request_record.code) + '</strong></p>' + \
+                            '<p>stdout: ' + str(mirboostHumanResponse.stdout) + '</p>' + \
+                            '<p>stderr: ' + str(mirboostHumanResponse.stderr) + '</p>'
+                        msg = EmailMultiAlternatives(
+                            subject, text_content, from_email, [to])
+                        msg.attach_alternative(html_content, "text/html")
+                        msg.send()
+                else: 
+                    subject, from_email, to = 'Erro na request mirboost!', 'marciogurka@marciogurka.com', 'marciogurkajr@gmail.com'
+                    text_content = ''
+                    html_content = '<p>Erro na request mirboost - código: <strong>' + \
+                        str(request_record.code) + '</strong></p>' + \
+                        '<p>stdout: ' + str(mirboostHumanResponse.stdout) + '</p>' + \
+                        '<p>stderr: ' + str(mirboostHumanResponse.stderr) + '</p>'
                     msg = EmailMultiAlternatives(
                         subject, text_content, from_email, [to])
                     msg.attach_alternative(html_content, "text/html")
