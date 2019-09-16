@@ -2,7 +2,7 @@ from django.db.models import Q
 from rest_framework import generics, mixins
 
 from request_records.models import RequestRecord, RequestInfo
-from .serializers import RequestRecordSerializer, RequestInfoSerializer
+from request_records.api.serializers import RequestRecordSerializer, RequestInfoSerializer
 
 class RequestRecordAPIView(mixins.CreateModelMixin, generics.ListAPIView):
     lookup_field = 'pk'

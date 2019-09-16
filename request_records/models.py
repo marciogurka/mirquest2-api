@@ -1,8 +1,7 @@
-from django.db import models
-from datetime import datetime
-from uuid import uuid4
-from tools.models import Tool
 import os
+from uuid import uuid4
+from django.db import models
+from tools.models import Tool
 
 
 def get_upload_path(instance, filename):

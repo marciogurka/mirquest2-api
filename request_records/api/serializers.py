@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
+import time
 
 class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
     tools = serializers.PrimaryKeyRelatedField(queryset=Tool.objects.all(), many=True)
@@ -75,20 +76,22 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
             if(tool.pk == 1):
                 filepath = request_record.pathname()
                 path = Path(filepath).resolve()
-                output_file_name = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_out.fa"
+                fileFormat = ".fa"
+                output_file_name = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_out" + fileFormat
                 input_file_name = str(path) + "/" + request_record.fileName
-                command = "cd mirinho/ && ./mirinho -s=0 -o '" + output_file_name + "' -i '" + input_file_name + "'"
+                command = "cd mirinho/ && ./mirinho -o '" + output_file_name + "' -i '" + input_file_name + "'"
+                start_time = time.time()
                 mirinhoResponse = subprocess.run([command], shell=True, capture_output=True)
+                requestTime = (time.time() - start_time)
                 if(mirinhoResponse.returncode == 0):
                     # get all request info about that request
                     requests_info = RequestInfo.objects.all().filter(request=request_record)
                     # get the request info about mirinho
                     request_info = next((x for x in requests_info if x.tool == tool), None)
-                    if(request_info != None):
+                    if(request_info is not None):
                         request_info.status = "PROCESSED"
                         request_info.endDate = datetime.now(timezone.utc)
-                        total_time = request_info.endDate - request_info.createdDate
-                        request_info.totalTime = (datetime.min + total_time).time()
+                        request_info.totalTime = datetime.utcfromtimestamp(requestTime).time()
                         request_info.save()
                         # sending email
                         subject, from_email, to = 'Your Mirinho request has just finished!', 'marciogurka@marciogurka.com', request_record.userEmail
@@ -99,7 +102,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                         msg.send()
                     #if there is no more request info in PROCESSING status, update the request
                     request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
-                    if(request_info_not_finished == None):
+                    if(request_info_not_finished is None):
                         request_record.status = "PROCESSED"
                         request_record.endDate = datetime.now(timezone.utc)
                         total_time = request_record.endDate - request_record.createdDate
@@ -120,20 +123,24 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                 # set file names
                 filepath = request_record.pathname()
                 path = Path(filepath).resolve()
+                fileFormat = ".fa"
+
                 input_file_name = str(path) + "/" + request_record.fileName
-                example_pos_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_pos.txt"
-                example_neg_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_neg.txt"
-                example_train_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_train.txt"
-                example_train_extracted_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_train_extracted.txt"
-                example_test_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_test.txt"
-                example_test_extracted_fileName = str(path) + "/" + request_record.fileName.split(".fa")[0] + "_test_extracted.txt"
+                example_pos_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_pos.txt"
+                example_neg_fileName = str(path) + "/"+ request_record.fileName.split(fileFormat)[0] + "_neg.txt"
+                example_pos_fileName_with_path = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_pos.txt"
+                example_neg_fileName_with_path = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_neg.txt"
+                example_train_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_train.txt"
+                example_train_extracted_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_train_extracted.txt"
+                example_test_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_test.txt"
+                example_test_extracted_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_test_extracted.txt"
                 # build commands
                 command0 = "cd miRBoost/"
                 command1 = "./gFoldmulti/gFold -s '" + input_file_name + "' -L 400 -DATA 1 > '" + example_pos_fileName + "'"
                 command2 = "./gFoldmulti/gFold -s '" + input_file_name + "' -L 400 -DATA -1 > '" + example_neg_fileName + "'"
-                command3 = "cat '" + example_pos_fileName + "' '" + example_neg_fileName + "' > '" + example_train_fileName + "'"
-                command4 = "head -100 '" + example_pos_fileName + "' > '" + example_test_fileName + "'"
-                command5 = "head -100 '" + example_neg_fileName + "' >> '" + example_test_fileName + "'"
+                command3 = "cat '" + example_pos_fileName_with_path + "' '" + example_neg_fileName_with_path + "' > '" + example_train_fileName + "'"
+                command4 = "head -100 '" + example_pos_fileName_with_path + "' > '" + example_test_fileName + "'"
+                command5 = "head -100 '" + example_neg_fileName_with_path + "' >> '" + example_test_fileName + "'"
                 # cmds for humans features
                 command6 = "./src/extractfeature.pl -s human_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_train_extracted_fileName + "'"
                 command7 = "./src/extractfeature.pl -s human_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_test_extracted_fileName + "'"
@@ -145,6 +152,9 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                 # command7 = "./src/extractfeature.pl -s whole_selected_features.txt -i '" + example_test_fileName + "' -o '" + example_test_extracted_fileName + "'"
                 # command8 = "./miRBoost -i '" + example_test_extracted_fileName + "' -t '" + example_train_extracted_fileName + "' -d 0.25"
                 # fullComand = command1 + " ; " + command2 + " ; " + command3 + " ; " + command4 + " ; " + command5 + " ; " + command6 + " ; " + command7 + " ; " + command8 + " ; "
+                print("comando miRBoost:\n")
+                print(fullComand)
+                print("--------------------------\n\n")
                 # mirboostWholeResponse = subprocess.run([fullComand], shell=True, capture_output=True)
                 if(mirboostHumanResponse.returncode == 0):
                     # move result file 
@@ -160,7 +170,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                         requests_info = RequestInfo.objects.all().filter(request=request_record)
                         # get the request info about mirboost
                         request_info = next((x for x in requests_info if x.tool == tool), None)
-                        if(request_info != None):
+                        if(request_info is not None):
                             request_info.status = "PROCESSED"
                             request_info.endDate = datetime.now(timezone.utc)
                             total_time = request_info.endDate - request_info.createdDate
@@ -175,7 +185,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                             msg.send()
                         #if there is no more request info in PROCESSING status, update the request
                         request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
-                        if(request_info_not_finished == None):
+                        if(request_info_not_finished is None):
                             request_record.status = "PROCESSED"
                             request_record.endDate = datetime.now(timezone.utc)
                             total_time = request_record.endDate - request_record.createdDate

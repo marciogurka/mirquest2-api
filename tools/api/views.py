@@ -2,7 +2,7 @@ from django.db.models import Q
 from rest_framework import generics, mixins
 
 from tools.models import Tool
-from .serializers import ToolSerializer
+from tools.api.serializers import ToolSerializer
 
 
 class ToolAPIView(mixins.CreateModelMixin, generics.ListAPIView):
