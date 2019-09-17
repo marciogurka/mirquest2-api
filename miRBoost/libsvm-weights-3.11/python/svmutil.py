@@ -1,37 +1,31 @@
 #!/usr/bin/env python
 
+import os, sys
+sys.path = [os.path.dirname(os.path.abspath(__file__))] + sys.path
 from svm import *
+from svm import __all__ as svm_all
+from svm import scipy, sparse
+from commonutil import *
+from commonutil import __all__ as common_all
 
-def svm_read_problem(data_file_name):
-	"""
-	svm_read_problem(data_file_name) -> [y, x]
+if sys.version_info[0] < 3:
+	range = xrange
+	from itertools import izip as zip
+	_cstr = lambda s: s.encode("utf-8") if isinstance(s,unicode) else str(s)
+else:
+	_cstr = lambda s: bytes(s, "utf-8")        
+        
+__all__ = ['svm_load_model', 'svm_predict', 'svm_save_model', 'svm_train'] + svm_all + common_all
 
-	Read LIBSVM-format data from data_file_name and return labels y
-	and data instances x.
-	"""
-	prob_y = []
-	prob_x = []
-	for line in open(data_file_name):
-		line = line.split(None, 1)
-		# In case an instance with all zero features
-		if len(line) == 1: line += ['']
-		label, features = line
-		xi = {}
-		for e in features.split():
-			ind, val = e.split(":")
-			xi[int(ind)] = float(val)
-		prob_y += [float(label)]
-		prob_x += [xi]
-	return (prob_y, prob_x)
 
 def svm_load_model(model_file_name):
 	"""
 	svm_load_model(model_file_name) -> model
-	
+
 	Load a LIBSVM model from model_file_name and return.
 	"""
-	model = libsvm.svm_load_model(model_file_name)
-	if not model: 
+	model = libsvm.svm_load_model(_cstr(model_file_name))
+	if not model:
 		print("can't open model file %s" % model_file_name)
 		return None
 	model = toPyModel(model)
@@ -43,54 +37,33 @@ def svm_save_model(model_file_name, model):
 
 	Save a LIBSVM model to the file model_file_name.
 	"""
-	libsvm.svm_save_model(model_file_name, model)
+	libsvm.svm_save_model(_cstr(model_file_name), model)
 
-def evaluations(ty, pv):
+def svm_train(arg1, arg2=None, arg3=None):
 	"""
-	evaluations(ty, pv) -> (ACC, MSE, SCC)
+	svm_train(y, x [, options]) -> model | ACC | MSE
 
-	Calculate accuracy, mean squared error and squared correlation coefficient
-	using the true values (ty) and predicted values (pv).
-	"""
-	if len(ty) != len(pv):
-		raise ValueError("len(ty) must equal to len(pv)")
-	total_correct = total_error = 0
-	sumv = sumy = sumvv = sumyy = sumvy = 0
-	for v, y in zip(pv, ty):
-		if y == v: 
-			total_correct += 1
-		total_error += (v-y)*(v-y)
-		sumv += v
-		sumy += y
-		sumvv += v*v
-		sumyy += y*y
-		sumvy += v*y 
-	l = len(ty)
-	ACC = 100.0*total_correct/l
-	MSE = total_error/l
-	try:
-		SCC = ((l*sumvy-sumv*sumy)*(l*sumvy-sumv*sumy))/((l*sumvv-sumv*sumv)*(l*sumyy-sumy*sumy))
-	except:
-		SCC = float('nan')
-	return (ACC, MSE, SCC)
+	y: a list/tuple/ndarray of l true labels (type must be int/double).
 
-def svm_train(arg1, arg2=None, arg3=None, arg4 = None):
-	"""
-	svm_train(W, y, x [, 'options']) -> model | ACC | MSE 
-	svm_train(prob, [, 'options']) -> model | ACC | MSE 
-	svm_train(prob, param) -> model | ACC| MSE 
+	x: 1. a list/tuple of l training instances. Feature vector of
+	      each training instance is a list/tuple or dictionary.
 
-	Train an SVM model from weighted data (W, y, x) or an svm_problem prob using
-	'options' or an svm_parameter param. 
+	   2. an l * n numpy ndarray or scipy spmatrix (n: number of features).
+
+	svm_train(prob [, options]) -> model | ACC | MSE
+	svm_train(prob, param) -> model | ACC| MSE
+
+	Train an SVM model from data (y, x) or an svm_problem prob using
+	'options' or an svm_parameter param.
 	If '-v' is specified in 'options' (i.e., cross validation)
 	either accuracy (ACC) or mean-squared error (MSE) is returned.
-	'options':
+	options:
 	    -s svm_type : set type of SVM (default 0)
-	        0 -- C-SVC
-	        1 -- nu-SVC
+	        0 -- C-SVC		(multi-class classification)
+	        1 -- nu-SVC		(multi-class classification)
 	        2 -- one-class SVM
-	        3 -- epsilon-SVR
-	        4 -- nu-SVR
+	        3 -- epsilon-SVR	(regression)
+	        4 -- nu-SVR		(regression)
 	    -t kernel_type : set type of kernel function (default 2)
 	        0 -- linear: u'*v
 	        1 -- polynomial: (gamma*u'*v + coef0)^degree
@@ -112,12 +85,11 @@ def svm_train(arg1, arg2=None, arg3=None, arg4 = None):
 	    -q : quiet mode (no outputs)
 	"""
 	prob, param = None, None
-	if isinstance(arg1, (list, tuple)):
-		assert isinstance(arg2, (list, tuple))
-		assert isinstance(arg3, list)
-		W, y, x, options = arg1, arg2, arg3, arg4
-		prob = svm_problem(W, y, x)
+	if isinstance(arg1, (list, tuple)) or (scipy and isinstance(arg1, scipy.ndarray)):
+		assert isinstance(arg2, (list, tuple)) or (scipy and isinstance(arg2, (scipy.ndarray, sparse.spmatrix)))
+		y, x, options = arg1, arg2, arg3
 		param = svm_parameter(options)
+		prob = svm_problem(y, x, isKernel=(param.kernel_type == PRECOMPUTED))
 	elif isinstance(arg1, svm_problem):
 		prob = arg1
 		if isinstance(arg2, svm_parameter):
@@ -128,14 +100,15 @@ def svm_train(arg1, arg2=None, arg3=None, arg4 = None):
 		raise TypeError("Wrong types for the arguments")
 
 	if param.kernel_type == PRECOMPUTED:
-		for xi in prob.x_space:
+		for i in range(prob.l):
+			xi = prob.x[i]
 			idx, val = xi[0].index, xi[0].value
-			if xi[0].index != 0:
+			if idx != 0:
 				raise ValueError('Wrong input format: first column must be 0:sample_serial_number')
 			if val <= 0 or val > prob.n:
 				raise ValueError('Wrong input format: sample_serial_number out of range')
 
-	if param.gamma == 0 and prob.n > 0: 
+	if param.gamma == 0 and prob.n > 0:
 		param.gamma = 1.0 / prob.n
 	libsvm.svm_set_print_string_function(param.print_func)
 	err_msg = libsvm.svm_check_parameter(prob, param)
@@ -145,7 +118,7 @@ def svm_train(arg1, arg2=None, arg3=None, arg4 = None):
 	if param.cross_validation:
 		l, nr_fold = prob.l, param.nr_fold
 		target = (c_double * l)()
-		libsvm.svm_cross_validation(prob, param, nr_fold, target)	
+		libsvm.svm_cross_validation(prob, param, nr_fold, target)
 		ACC, MSE, SCC = evaluations(prob.y[:l], target[:l])
 		if param.svm_type in [EPSILON_SVR, NU_SVR]:
 			print("Cross Validation Mean squared error = %g" % MSE)
@@ -164,18 +137,28 @@ def svm_train(arg1, arg2=None, arg3=None, arg4 = None):
 
 def svm_predict(y, x, m, options=""):
 	"""
-	svm_predict(y, x, m [, "options"]) -> (p_labels, p_acc, p_vals)
+	svm_predict(y, x, m [, options]) -> (p_labels, p_acc, p_vals)
 
-	Predict data (y, x) with the SVM model m. 
-	"options": 
-	    -b probability_estimates: whether to predict probability estimates, 
+	y: a list/tuple/ndarray of l true labels (type must be int/double).
+	   It is used for calculating the accuracy. Use [] if true labels are
+	   unavailable.
+
+	x: 1. a list/tuple of l training instances. Feature vector of
+	      each training instance is a list/tuple or dictionary.
+
+	   2. an l * n numpy ndarray or scipy spmatrix (n: number of features).
+
+	Predict data (y, x) with the SVM model m.
+	options:
+	    -b probability_estimates: whether to predict probability estimates,
 	        0 or 1 (default 0); for one-class SVM only 0 is supported.
+	    -q : quiet mode (no outputs).
 
 	The return tuple contains
 	p_labels: a list of predicted labels
-	p_acc: a tuple including  accuracy (for classification), mean-squared 
+	p_acc: a tuple including  accuracy (for classification), mean-squared
 	       error, and squared correlation coefficient (for regression).
-	p_vals: a list of decision values or probability estimates (if '-b 1' 
+	p_vals: a list of decision values or probability estimates (if '-b 1'
 	        is specified). If k is the number of classes, for decision values,
 	        each element includes results of predicting k(k-1)/2 binary-class
 	        SVMs. For probabilities, each element contains k values indicating
@@ -183,6 +166,20 @@ def svm_predict(y, x, m, options=""):
 	        Note that the order of classes here is the same as 'model.label'
 	        field in the model structure.
 	"""
+
+	def info(s):
+		print(s)
+
+	if scipy and isinstance(x, scipy.ndarray):
+		x = scipy.ascontiguousarray(x) # enforce row-major
+	elif sparse and isinstance(x, sparse.spmatrix):
+		x = x.tocsr()
+	elif not isinstance(x, (list, tuple)):
+		raise TypeError("type of x: {0} is not supported!".format(type(x)))
+
+	if (not isinstance(y, (list, tuple))) and (not (scipy and isinstance(y, scipy.ndarray))):
+		raise TypeError("type of y: {0} is not supported!".format(type(y)))
+
 	predict_probability = 0
 	argv = options.split()
 	i = 0
@@ -190,6 +187,8 @@ def svm_predict(y, x, m, options=""):
 		if argv[i] == '-b':
 			i += 1
 			predict_probability = int(argv[i])
+		elif argv[i] == '-q':
+			info = print_null
 		else:
 			raise ValueError("Wrong options")
 		i+=1
@@ -200,47 +199,61 @@ def svm_predict(y, x, m, options=""):
 	pred_labels = []
 	pred_values = []
 
+	if scipy and isinstance(x, sparse.spmatrix):
+		nr_instance = x.shape[0]
+	else:
+		nr_instance = len(x)
+
 	if predict_probability:
 		if not is_prob_model:
 			raise ValueError("Model does not support probabiliy estimates")
 
 		if svm_type in [NU_SVR, EPSILON_SVR]:
-			print("Prob. model for test data: target value = predicted value + z,\n"
+			info("Prob. model for test data: target value = predicted value + z,\n"
 			"z: Laplace distribution e^(-|z|/sigma)/(2sigma),sigma=%g" % m.get_svr_probability());
 			nr_class = 0
 
 		prob_estimates = (c_double * nr_class)()
-		for xi in x:
-			xi, idx = gen_svm_nodearray(xi)
+		for i in range(nr_instance):
+			if scipy and isinstance(x, sparse.spmatrix):
+				indslice = slice(x.indptr[i], x.indptr[i+1])
+				xi, idx = gen_svm_nodearray((x.indices[indslice], x.data[indslice]), isKernel=(m.param.kernel_type == PRECOMPUTED))
+			else:
+				xi, idx = gen_svm_nodearray(x[i], isKernel=(m.param.kernel_type == PRECOMPUTED))
 			label = libsvm.svm_predict_probability(m, xi, prob_estimates)
 			values = prob_estimates[:nr_class]
 			pred_labels += [label]
 			pred_values += [values]
 	else:
 		if is_prob_model:
-			print("Model supports probability estimates, but disabled in predicton.")
+			info("Model supports probability estimates, but disabled in predicton.")
 		if svm_type in (ONE_CLASS, EPSILON_SVR, NU_SVC):
 			nr_classifier = 1
 		else:
 			nr_classifier = nr_class*(nr_class-1)//2
 		dec_values = (c_double * nr_classifier)()
-		for xi in x:
-			xi, idx = gen_svm_nodearray(xi)
+		for i in range(nr_instance):
+			if scipy and isinstance(x, sparse.spmatrix):
+				indslice = slice(x.indptr[i], x.indptr[i+1])
+				xi, idx = gen_svm_nodearray((x.indices[indslice], x.data[indslice]), isKernel=(m.param.kernel_type == PRECOMPUTED))
+			else:
+				xi, idx = gen_svm_nodearray(x[i], isKernel=(m.param.kernel_type == PRECOMPUTED))
 			label = libsvm.svm_predict_values(m, xi, dec_values)
-			if(nr_class == 1): 
+			if(nr_class == 1):
 				values = [1]
-			else: 
+			else:
 				values = dec_values[:nr_classifier]
 			pred_labels += [label]
 			pred_values += [values]
 
+	if len(y) == 0:
+		y = [0] * nr_instance
 	ACC, MSE, SCC = evaluations(y, pred_labels)
-	l = len(y)
+
 	if svm_type in [EPSILON_SVR, NU_SVR]:
-		print("Mean squared error = %g (regression)" % MSE)
-		print("Squared correlation coefficient = %g (regression)" % SCC)
+		info("Mean squared error = %g (regression)" % MSE)
+		info("Squared correlation coefficient = %g (regression)" % SCC)
 	else:
-		print("Accuracy = %g%% (%d/%d) (classification)" % (ACC, int(l*ACC/100), l))
+		info("Accuracy = %g%% (%d/%d) (classification)" % (ACC, int(round(nr_instance*ACC/100)), nr_instance))
 
 	return pred_labels, (ACC, MSE, SCC), pred_values
-

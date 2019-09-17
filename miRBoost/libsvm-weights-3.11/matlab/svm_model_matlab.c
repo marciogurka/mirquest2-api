@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "../svm.h"
+#include "svm.h"
 
 #include "mex.h"
 
@@ -10,7 +10,7 @@ typedef int mwIndex;
 #endif
 #endif
 
-#define NUM_OF_RETURN_FIELD 10
+#define NUM_OF_RETURN_FIELD 11
 
 #define Malloc(type,n) (type *)malloc((n)*sizeof(type))
 
@@ -20,6 +20,7 @@ static const char *field_names[] = {
 	"totalSV",
 	"rho",
 	"Label",
+	"sv_indices",
 	"ProbA",
 	"ProbB",
 	"nSV",
@@ -78,6 +79,18 @@ const char *model_to_matlab_structure(mxArray *plhs[], int num_of_feature, struc
 		rhs[out_id] = mxCreateDoubleMatrix(0, 0, mxREAL);
 	out_id++;
 
+	// sv_indices
+	if(model->sv_indices)
+	{
+		rhs[out_id] = mxCreateDoubleMatrix(model->l, 1, mxREAL);
+		ptr = mxGetPr(rhs[out_id]);
+		for(i = 0; i < model->l; i++)
+			ptr[i] = model->sv_indices[i];
+	}
+	else
+		rhs[out_id] = mxCreateDoubleMatrix(0, 0, mxREAL);
+	out_id++;
+
 	// probA
 	if(model->probA != NULL)
 	{
@@ -126,7 +139,7 @@ const char *model_to_matlab_structure(mxArray *plhs[], int num_of_feature, struc
 	{
 		int ir_index, nonzero_element;
 		mwIndex *ir, *jc;
-		mxArray *pprhs[1], *pplhs[1];	
+		mxArray *pprhs[1], *pplhs[1];
 
 		if(model->param.kernel_type == PRECOMPUTED)
 		{
@@ -138,7 +151,7 @@ const char *model_to_matlab_structure(mxArray *plhs[], int num_of_feature, struc
 			nonzero_element = 0;
 			for(i = 0; i < model->l; i++) {
 				j = 0;
-				while(model->SV[i][j].index != -1) 
+				while(model->SV[i][j].index != -1)
 				{
 					nonzero_element++;
 					j++;
@@ -151,13 +164,13 @@ const char *model_to_matlab_structure(mxArray *plhs[], int num_of_feature, struc
 		ir = mxGetIr(rhs[out_id]);
 		jc = mxGetJc(rhs[out_id]);
 		ptr = mxGetPr(rhs[out_id]);
-		jc[0] = ir_index = 0;		
+		jc[0] = ir_index = 0;
 		for(i = 0;i < model->l; i++)
 		{
 			if(model->param.kernel_type == PRECOMPUTED)
 			{
 				// make a (1 x model->l) matrix
-				ir[ir_index] = 0; 
+				ir[ir_index] = 0;
 				ptr[ir_index] = model->SV[i][0].value;
 				ir_index++;
 				jc[i+1] = jc[i] + 1;
@@ -167,7 +180,7 @@ const char *model_to_matlab_structure(mxArray *plhs[], int num_of_feature, struc
 				int x_index = 0;
 				while (model->SV[i][x_index].index != -1)
 				{
-					ir[ir_index] = model->SV[i][x_index].index - 1; 
+					ir[ir_index] = model->SV[i][x_index].index - 1;
 					ptr[ir_index] = model->SV[i][x_index].value;
 					ir_index++, x_index++;
 				}
@@ -205,7 +218,7 @@ struct svm_model *matlab_matrix_to_model(const mxArray *matlab_struct, const cha
 	mxArray **rhs;
 
 	num_of_fields = mxGetNumberOfFields(matlab_struct);
-	if(num_of_fields != NUM_OF_RETURN_FIELD) 
+	if(num_of_fields != NUM_OF_RETURN_FIELD)
 	{
 		*msg = "number of return field is not correct";
 		return NULL;
@@ -220,6 +233,7 @@ struct svm_model *matlab_matrix_to_model(const mxArray *matlab_struct, const cha
 	model->probA = NULL;
 	model->probB = NULL;
 	model->label = NULL;
+	model->sv_indices = NULL;
 	model->nSV = NULL;
 	model->free_sv = 1; // XXX
 
@@ -254,6 +268,16 @@ struct svm_model *matlab_matrix_to_model(const mxArray *matlab_struct, const cha
 		ptr = mxGetPr(rhs[id]);
 		for(i=0;i<model->nr_class;i++)
 			model->label[i] = (int)ptr[i];
+	}
+	id++;
+
+	// sv_indices
+	if(mxIsEmpty(rhs[id]) == 0)
+	{
+		model->sv_indices = (int*) malloc(model->l*sizeof(int));
+		ptr = mxGetPr(rhs[id]);
+		for(i=0;i<model->l;i++)
+			model->sv_indices[i] = (int)ptr[i];
 	}
 	id++;
 
@@ -299,14 +323,14 @@ struct svm_model *matlab_matrix_to_model(const mxArray *matlab_struct, const cha
 
 	// SV
 	{
-		int sr, sc, elements;
+		int sr, elements;
 		int num_samples;
 		mwIndex *ir, *jc;
 		mxArray *pprhs[1], *pplhs[1];
 
 		// transpose SV
 		pprhs[0] = rhs[id];
-		if(mexCallMATLAB(1, pplhs, 1, pprhs, "transpose")) 
+		if(mexCallMATLAB(1, pplhs, 1, pprhs, "transpose"))
 		{
 			svm_free_and_destroy_model(&model);
 			*msg = "cannot transpose SV matrix";
@@ -315,7 +339,6 @@ struct svm_model *matlab_matrix_to_model(const mxArray *matlab_struct, const cha
 		rhs[id] = pplhs[0];
 
 		sr = (int)mxGetN(rhs[id]);
-		sc = (int)mxGetM(rhs[id]);
 
 		ptr = mxGetPr(rhs[id]);
 		ir = mxGetIr(rhs[id]);
@@ -336,7 +359,7 @@ struct svm_model *matlab_matrix_to_model(const mxArray *matlab_struct, const cha
 			model->SV[i] = &x_space[low+i];
 			for(j=low;j<high;j++)
 			{
-				model->SV[i][x_index].index = (int)ir[j] + 1; 
+				model->SV[i][x_index].index = (int)ir[j] + 1;
 				model->SV[i][x_index].value = ptr[j];
 				x_index++;
 			}

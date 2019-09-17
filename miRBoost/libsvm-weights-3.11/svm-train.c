@@ -14,11 +14,11 @@ void exit_with_help()
 	"Usage: svm-train [options] training_set_file [model_file]\n"
 	"options:\n"
 	"-s svm_type : set type of SVM (default 0)\n"
-	"	0 -- C-SVC\n"
-	"	1 -- nu-SVC\n"
+	"	0 -- C-SVC		(multi-class classification)\n"
+	"	1 -- nu-SVC		(multi-class classification)\n"
 	"	2 -- one-class SVM\n"
-	"	3 -- epsilon-SVR\n"
-	"	4 -- nu-SVR\n"
+	"	3 -- epsilon-SVR	(regression)\n"
+	"	4 -- nu-SVR		(regression)\n"
 	"-t kernel_type : set type of kernel function (default 2)\n"
 	"	0 -- linear: u'*v\n"
 	"	1 -- polynomial: (gamma*u'*v + coef0)^degree\n"
@@ -38,7 +38,6 @@ void exit_with_help()
 	"-wi weight : set the parameter C of class i to weight*C, for C-SVC (default 1)\n"
 	"-v n: n-fold cross validation mode\n"
 	"-q : quiet mode (no outputs)\n"
-	"-W weight_file: set weight file\n"
 	);
 	exit(1);
 }
@@ -57,7 +56,6 @@ struct svm_parameter param;		// set by parse_command_line
 struct svm_problem prob;		// set by read_problem
 struct svm_model *model;
 struct svm_node *x_space;
-char *weight_file;
 int cross_validation;
 int nr_fold;
 
@@ -67,7 +65,7 @@ static int max_line_len;
 static char* readline(FILE *input)
 {
 	int len;
-	
+
 	if(fgets(line,max_line_len,input) == NULL)
 		return NULL;
 
@@ -248,7 +246,11 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 				param.weight[param.nr_weight-1] = atof(argv[i]);
 				break;
 			case 'W':
-				weight_file = argv[i];
+				++param.nr_weight;
+				param.weight_label = (int *)realloc(param.weight_label,sizeof(int)*param.nr_weight);
+				param.weight = (double *)realloc(param.weight,sizeof(double)*param.nr_weight);
+				param.weight_label[param.nr_weight-1] = atoi(&argv[i-1][2]);
+				param.weight[param.nr_weight-1] = atof(argv[i]);
 				break;
 			default:
 				fprintf(stderr,"Unknown option: -%c\n", argv[i-1][1]);
@@ -282,7 +284,8 @@ void parse_command_line(int argc, char **argv, char *input_file_name, char *mode
 
 void read_problem(const char *filename)
 {
-	int elements, max_index, inst_max_index, i, j;
+	int max_index, inst_max_index, i;
+	size_t elements, j;
 	FILE *fp = fopen(filename,"r");
 	char *endptr;
 	char *idx, *val, *label;
@@ -317,7 +320,6 @@ void read_problem(const char *filename)
 
 	prob.y = Malloc(double,prob.l);
 	prob.x = Malloc(struct svm_node *,prob.l);
-	prob.W = Malloc(double,prob.l);
 	x_space = Malloc(struct svm_node,elements);
 
 	max_index = 0;
@@ -334,7 +336,6 @@ void read_problem(const char *filename)
 		prob.y[i] = strtod(label,&endptr);
 		if(endptr == label || *endptr != '\0')
 			exit_input_error(i+1);
-		prob.W[i] = 1;
 
 		while(1)
 		{
@@ -383,12 +384,4 @@ void read_problem(const char *filename)
 		}
 
 	fclose(fp);
-
-	if(weight_file) 
-	{
-		fp = fopen(weight_file,"r");
-		for(i=0;i<prob.l;i++)
-			fscanf(fp,"%lf",&prob.W[i]);
-		fclose(fp);
-	}
 }

@@ -10,7 +10,7 @@
 # All rights reserved.
 #
 # This program is distributed under the same license of the LIBSVM package.
-# 
+#
 
 from sys import argv, exit
 import os.path
@@ -51,7 +51,7 @@ def main():
 		# check label
 		try:
 			label = nodes.pop(0)
-			
+
 			if label.find(',') != -1:
 				# multi-label format
 				try:
@@ -84,7 +84,7 @@ def main():
 				if index < 0:
 					err(line_no, "feature index must be positive; wrong feature {0}".format(nodes[i]))
 					line_error = True
-				elif index < prev_index:
+				elif index <= prev_index:
 					err(line_no, "feature indices must be in an ascending order, previous/current features {0} {1}".format(nodes[i-1], nodes[i]))
 					line_error = True
 				prev_index = index
@@ -96,7 +96,7 @@ def main():
 
 		if line_error:
 			error_line_count += 1
-	
+
 	if error_line_count > 0:
 		print("Found {0} lines with error.".format(error_line_count))
 		return 1
