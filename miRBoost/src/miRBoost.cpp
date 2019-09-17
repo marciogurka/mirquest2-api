@@ -586,7 +586,7 @@ void weakclassifierSS(int iteration, char *pPATH, int NB_SAMPLES_TRAIN, string *
 	sdouble4 << costneg;
 	cout<<(sdouble3.str()).c_str()<<(sdouble4.str()).c_str()<<endl;
 	char *args_train[] = {(char*)"svm-train", (char*)"-h", (char*)"0", 
-			      (char*)"-c", (char*)(tokenC.c_str()), (char*)"-g", (char*)(tokenG.c_str()),
+			      (char*)"-c", (char*)("1"), (char*)"-g", (char*)(tokenG.c_str()),
 			      (char*)"-w1", (char*)((sdouble3.str()).c_str()), (char*)"-w-1", (char*)((sdouble4.str()).c_str()),
 			      //(char*)"-w1", (char*)"6", (char*)"-w-1", (char*)"1",
 			      (char*)"-W", (char*)"remains.wgt", 
@@ -667,7 +667,7 @@ void weakclassifierFS(int iteration, char *pPATH, int NB_SAMPLES_TRAIN, string *
 	//freopen("test.txt", "w", stdout);
 		
 	char *args_train[] = {(char*)"svm-train", (char*)"-h", (char*)"0", 
-						(char*)"-c", (char*)(tokenC.c_str()), (char*)"-g", (char*)(tokenG.c_str()),
+						(char*)"-c", (char*)"1", (char*)"-g", (char*)(tokenG.c_str()),
 						(char*)"-w1", (char*)"3", (char*)"-w-1", (char*)"1", 
 						(char*)"-W", (char*)"samples.wgt", (char*)"samples.train.scale", NULL};
 									//(char*)"-w1", (char*)(sdouble3.str()).c_str(), (char*)"-w0", (char*)(sdouble4.str()).c_str(),
@@ -1098,9 +1098,6 @@ int main(int argc, char **argv) {
 		cout<<labels_test.at(i)+1;
 	cout<<endl;
 
-	cout<<"Results saved at: ";
-	cout<<"results." + to_string(getpid()) + ".txt";
-	cout<<endl;
 	output_file.open("results." + to_string(getpid()) + ".txt");
 	for (unsigned int i=0; i<NB_SAMPLES_TEST; i++)
 		output_file<<sign(decision_test.at(i))<<endl;

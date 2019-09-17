@@ -27,8 +27,6 @@ Execution
 	samples separately, then join them into a unique training or testing file.
 
   	./gFoldmulti/gFold -s wholepos_nobreak_400_97.fa -L 400 -DATA 1  > wholepos_187.txt
-  	./gFoldmulti/gFold -s example.fa -L 400 -DATA 1 > wholepos_187.txt
-  	./gFoldmulti/gFold -s example.fa -L 400 -DATA -1 > wholeneg_187.txt
   	./gFoldmulti/gFold -s wholeneg_nobreak_400_97.fa -L 400 -DATA -1 > wholeneg_187.txt
   	cat wholepos_187.txt wholeneg_187.txt > train_187.txt
 	head -100 wholepos_187.txt > test_187.txt
@@ -40,10 +38,8 @@ Execution
      If a new training set is used to build the model, you may follow our feature selection
      process to select the appropriate features.
 
-  	./src/extractfeature.pl -s whole_selected_features.txt -i train_187.txt -o train_selected.txt  
-  	./src/extractfeature.pl -s human_selected_features.txt -i train_187.txt -o train_selected.txt  
-	  ./src/extractfeature.pl -s whole_selected_features.txt -i test_187.txt -o test_selected.txt
-	  ./src/extractfeature.pl -s human_selected_features.txt -i test_187.txt -o test_selected.txt
+  	./src/extractfeature.pl -s $SELECT -i train_187.txt -o train_selected.txt  
+	./src/extractfeature.pl -s $SELECT -i test_187.txt -o test_selected.txt
 
   3. Run miRBoost, with delta = 0.25 (by default)
   	
