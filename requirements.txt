@@ -1,6 +1,5 @@
 Django==2.1.7
 django-background-tasks==1.2.0
-djangorestframework==3.9.2 
-markdown==3.0.0
-django-filter==1.0.1
+django-compat==1.0.15
 django-cors-headers==3.1.0
+djangorestframework==3.9.2
