@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'request_records',
     'tools',
-    'corsheaders'
+    'corsheaders',
+    'background_task'
 ]
 
 MIDDLEWARE = [

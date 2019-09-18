@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from django.core.mail import send_mail
 from django.core.mail import EmailMultiAlternatives
+from background_task import background
 import time
 import glob
 
@@ -67,10 +68,12 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
             instance.fileName = instance.get_filename()
         instance.save()
         if(instance.status == "PROCESSING"):
-            self.startToolProcessFile(instance)
+            RequestRecordSerializer.startToolProcessFile(instance.pk)
         return instance
 
-    def startToolProcessFile(self, request_record):
+    @background(schedule=30)
+    def startToolProcessFile(request_record_id):
+        request_record = RequestRecord.objects.get(pk=request_record_id)
         tools = [val for val in request_record.tools.all() if val in Tool.objects.all()]
         for tool in tools:
             # mirinho
@@ -136,7 +139,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                 example_test_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_test.txt"
                 example_test_extracted_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_test_extracted.txt"
                 # process FASTA file to avoid segmentation fault
-                self.processMirboostFile(request_record)
+                RequestRecordSerializer.processMirboostFile(request_record)
                 # build commands
                 command0 = "cd miRBoost/"
                 command1 = "./gFoldmulti/gFold -s '" + processed_file_name + "' -L 450 -DATA 1 > '" + example_pos_fileName + "'"
@@ -286,7 +289,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                     msg.attach_alternative(html_content, "text/html")
                     msg.send()
     
-    def processMirboostFile(self, request_record): 
+    def processMirboostFile(request_record): 
         filepath = request_record.pathname()
         path = Path(filepath).resolve()
         input_file_name = str(path) + "/" + request_record.fileName
