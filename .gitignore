@@ -1,5 +1,9 @@
 /files
 /.vscode
+# miRBoost training files
+/miRBoost/*.scale
+/miRBoost/*.predict
+/miRBoost/*.wgt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
