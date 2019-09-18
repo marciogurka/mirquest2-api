@@ -15,5 +15,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mirquest.settings')
 
 # add the project path into the sys.path
 os.path.append('/var/www/html/mirquest2/mirquest2-api')
+# add the virtualenv site-packages path to the sys.path
+os.path.append('/var/www/html/mirquest2/mirquest2-api/lib/python3.7/site-packages')
 
 application = get_wsgi_application()
