@@ -1,0 +1,59 @@
+https://medium.com/@srijan.pydev_21998/complete-guide-to-deploy-django-applications-on-aws-ubuntu-16-04-instance-with-uwsgi-and-nginx-b9929da7b716
+
+uwsgi --http :8000 --home /home/ubuntu/mirquest2_venv/ --chdir /home/ubuntu/mirquest2-api/ --module mirquest.wsgi
+
+## mirquest2-api.ini ## 
+[uwsgi]
+project = mirquest2-api
+uid = ubuntu
+base = /home/%(uid)
+
+chdir = %(base)/%(project)
+home = %(base)/mirquest2_venv
+module = mirquest.wsgi:application
+
+master = true
+processes = 5
+
+socket = %(base)/%(project).sock
+chown-socket = %(uid):www-data
+chmod-socket = 666
+vacuum = true
+
+
+## Service ##
+[Unit]
+Description=uWSGI Emperor service
+
+[Service]
+ExecStartPre=/bin/bash -c 'mkdir -p /run/uwsgi; chown ubuntu:www-data /run/uwsgi'
+ExecStart=/usr/local/bin/uwsgi --emperor /etc/uwsgi/sites
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
+
+
+## nginx config ##
+server {
+        listen 8000;
+    server_name 54.85.174.85;
+
+    location = /favicon.ico {access_log off; log_not_found off; }
+
+    location = /static/ {
+        root /home/ubuntu/mirquest2-api;
+    }
+
+    location / {
+        include        /etc/nginx/uwsgi_params;
+        uwsgi_pass     unix:///home/ubuntu/mirquest2-api/mirquest2-api.sock;
+    }
+}
+
+
+## link available to enabled nginx site ## 
+sudo ln -s /etc/nginx/sites-available/mirquest2-api /etc/nginx/sites-enabled/mirquest2-api
