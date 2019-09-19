@@ -48,9 +48,13 @@ server {
         root /home/ubuntu/mirquest2-api;
     }
 
+    location = /files/ {
+        root /home/ubuntu/mirquest2-api/files;
+    }
+
     location / {
         include        /etc/nginx/uwsgi_params;
-        uwsgi_pass     unix:///home/ubuntu/mirquest2-api/mirquest2-api.sock;
+        uwsgi_pass     unix:///home/ubuntu/mirquest2-api.sock;
     }
 }
 
