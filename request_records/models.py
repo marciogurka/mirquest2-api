@@ -24,7 +24,7 @@ class RequestRecord(models.Model):
         return os.path.basename(self.file.name)
     
     def pathname(self):
-        return os.path.dirname(os.path.abspath(self.file.name))
+        return os.path.dirname(self.file.name)
 
 
 class RequestInfo(models.Model):
