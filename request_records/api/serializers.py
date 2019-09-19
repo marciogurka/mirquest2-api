@@ -83,7 +83,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                 fileFormat = ".fa"
                 output_file_name = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_out" + fileFormat
                 input_file_name = str(path) + "/" + request_record.fileName
-                command = "cd mirinho/ && ./mirinho -o '" + output_file_name + "' -i '" + input_file_name + "'"
+                command = "cd ~/mirquest2-api/mirinho/ && ./mirinho -o '" + output_file_name + "' -i '" + input_file_name + "'"
                 start_time = time.time()
                 mirinhoResponse = subprocess.run([command], shell=True, capture_output=True)
                 requestTime = (time.time() - start_time)
@@ -141,7 +141,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                 # process FASTA file to avoid segmentation fault
                 RequestRecordSerializer.processMirboostFile(request_record)
                 # build commands
-                command0 = "cd miRBoost/"
+                command0 = "~/mirquest2-api/miRBoost/"
                 command1 = "./gFoldmulti/gFold -s '" + processed_file_name + "' -L 450 -DATA 1 > '" + example_pos_fileName + "'"
                 command2 = "./gFoldmulti/gFold -s '" + processed_file_name + "' -L 450 -DATA -1 > '" + example_neg_fileName + "'"
                 command3 = "cat '" + example_pos_fileName_with_path + "' '" + example_neg_fileName_with_path + "' > '" + example_train_fileName + "'"
@@ -165,7 +165,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                     matches = re.findall(pattern, str(mirboostHumanResponse.stdout.decode('utf-8')))
                     if(matches): 
                         resultFileName = str(matches[0])
-                        command0 = "cd miRBoost/"
+                        command0 = "~/mirquest2-api/miRBoost/"
                         rnCommand = "mv '" + resultFileName + "' result_mirboost_" + str(request_record.code) + ".txt"
                         mvCommand = "mv result_mirboost_" + str(request_record.code) + ".txt " + str(path) + ""
                         mvCommandResponse = subprocess.run([command0 + ";" + rnCommand + ";" + mvCommand], shell=True, capture_output=True)
