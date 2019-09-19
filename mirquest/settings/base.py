@@ -72,6 +72,7 @@ logging.config.dictConfig({
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MEDIA_ROOT = os.path.join(BASE_DIR)
 MEDIA_URL = "/"
+FILE_UPLOAD_PERMISSIONS = 0o644
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
