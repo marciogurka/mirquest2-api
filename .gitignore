@@ -1,9 +1,11 @@
 /files
 /.vscode
+*.fna
 # miRBoost training files
-/miRBoost/*.scale
-/miRBoost/*.predict
-/miRBoost/*.wgt
+*.scale
+*.predict
+*.wgt
+/miRBoost/libsvm-weights-3.11/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
