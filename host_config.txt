@@ -45,7 +45,7 @@ server {
     location = /favicon.ico {access_log off; log_not_found off; }
 
     location = /static/ {
-        root /home/ubuntu/mirquest2-api;
+        root /home/ubuntu/mirquest2-api/mirquest/static;
     }
 
     location = /files/ {
