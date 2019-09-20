@@ -41,6 +41,7 @@ WantedBy=multi-user.target
 server {
         listen 8000;
     server_name 54.85.174.85;
+    client_max_body_size 11M;
 
     location = /favicon.ico {access_log off; log_not_found off; }
 
