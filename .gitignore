@@ -5,6 +5,9 @@
 *.scale
 *.predict
 *.wgt
+/miRBoost/remains
+/miRBoost/range
+/miRBoost/discard
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
