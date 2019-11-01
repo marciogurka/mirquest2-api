@@ -16,6 +16,8 @@ from background_task import background
 import time
 import glob
 
+from django.conf import settings
+
 class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
     tools = serializers.PrimaryKeyRelatedField(queryset=Tool.objects.all(), many=True)
 
@@ -53,7 +55,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
             str(request_record.code) + '</strong></p>'
         msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
         msg.attach_alternative(html_content, "text/html")
-        msg.send()
+        if (settings.ENABLE_EMAIL):
+            msg.send()
         return request_record
 
     def update(self, instance, validated_data):
@@ -71,7 +74,7 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
             RequestRecordSerializer.startToolProcessFile(instance.pk)
         return instance
 
-    @background(schedule=30)
+    @background(schedule=10)
     def startToolProcessFile(request_record_id):
         request_record = RequestRecord.objects.get(pk=request_record_id)
         tools = [val for val in request_record.tools.all() if val in Tool.objects.all()]
@@ -80,8 +83,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
             if(tool.pk == 1):
                 filepath = request_record.pathname()
                 path = Path(filepath).resolve()
-                fileFormat = ".fa"
-                output_file_name = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_out" + fileFormat
+                filename, fileFormat = os.path.splitext(request_record.fileName)
+                output_file_name = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_out.fa"
                 input_file_name = str(path) + "/" + request_record.fileName
                 command = "cd ~/mirquest2-api/mirinho/ && ./mirinho -o '" + output_file_name + "' -i '" + input_file_name + "'"
                 start_time = time.time()
@@ -103,7 +106,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                         html_content = '<p>Your Mirinho request has just finished processing. Check out the result using the code below!</p><p>Your request code: <strong>' + str(request_info.requestCode) + '</strong></p>'
                         msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
                         msg.attach_alternative(html_content, "text/html")
-                        msg.send()
+                        if (settings.ENABLE_EMAIL):
+                            msg.send()
                     #if there is no more request info in PROCESSING status, update the request
                     request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
                     if(request_info_not_finished is None):
@@ -122,12 +126,13 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                     msg = EmailMultiAlternatives(
                         subject, text_content, from_email, [to])
                     msg.attach_alternative(html_content, "text/html")
-                    msg.send()
+                    if (settings.ENABLE_EMAIL):
+                        msg.send()
             elif(tool.id == 2): 
                 # set file names
                 filepath = request_record.pathname()
                 path = Path(filepath).resolve()
-                fileFormat = ".fa"
+                filename, fileFormat = os.path.splitext(request_record.fileName)
                 processed_file_name = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_processed" + fileFormat
                 input_file_name = str(path) + "/" + request_record.fileName
                 example_pos_fileName = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_pos.txt"
@@ -186,7 +191,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                                 html_content = '<p>Your miRBoost request has just finished processing. Check out the result using the code below!</p><p>Your request code: <strong>' + str(request_info.requestCode) + '</strong></p>'
                                 msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
                                 msg.attach_alternative(html_content, "text/html")
-                                msg.send()
+                                if (settings.ENABLE_EMAIL):
+                                    msg.send()
                             #if there is no more request info in PROCESSING status, update the request
                             request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
                             if(request_info_not_finished is None):
@@ -205,7 +211,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                             msg = EmailMultiAlternatives(
                                 subject, text_content, from_email, [to])
                             msg.attach_alternative(html_content, "text/html")
-                            msg.send()
+                            if (settings.ENABLE_EMAIL):
+                                msg.send()
                     else: 
                         pattern = "miRBoost/results*.txt"
                         resultFileArray = glob.glob(pattern)
@@ -231,7 +238,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                                     html_content = '<p>Your miRBoost request has just finished processing. Check out the result using the code below!</p><p>Your request code: <strong>' + str(request_info.requestCode) + '</strong></p>'
                                     msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
                                     msg.attach_alternative(html_content, "text/html")
-                                    msg.send()
+                                    if (settings.ENABLE_EMAIL):
+                                        msg.send()
                                 #if there is no more request info in PROCESSING status, update the request
                                 request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
                                 if(request_info_not_finished is None):
@@ -250,7 +258,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                                 msg = EmailMultiAlternatives(
                                     subject, text_content, from_email, [to])
                                 msg.attach_alternative(html_content, "text/html")
-                                msg.send()
+                                if (settings.ENABLE_EMAIL):
+                                    msg.send()
                         else:
                             # get all request info about that request
                             requests_info = RequestInfo.objects.all().filter(request=request_record)
@@ -268,7 +277,8 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                                 html_content = '<p>Your miRBoost request has just finished processing. Check out the result using the code below!</p><p>Your request code: <strong>' + str(request_info.requestCode) + '</strong></p>'
                                 msg = EmailMultiAlternatives(subject, text_content, from_email, [to])
                                 msg.attach_alternative(html_content, "text/html")
-                                msg.send()
+                                if (settings.ENABLE_EMAIL):
+                                    msg.send()
                             #if there is no more request info in PROCESSING status, update the request
                             request_info_not_finished = next((x for x in requests_info if x.status == "PROCESSING"), None)
                             if(request_info_not_finished is None):
@@ -287,13 +297,14 @@ class RequestRecordSerializer(serializers.ModelSerializer): #forms.ModelForm
                     msg = EmailMultiAlternatives(
                         subject, text_content, from_email, [to])
                     msg.attach_alternative(html_content, "text/html")
-                    msg.send()
+                    if (settings.ENABLE_EMAIL):
+                        msg.send()
     
     def processMirboostFile(request_record): 
         filepath = request_record.pathname()
         path = Path(filepath).resolve()
         input_file_name = str(path) + "/" + request_record.fileName
-        fileFormat = ".fa"
+        filename, fileFormat = os.path.splitext(request_record.fileName)
         output_file_name = str(path) + "/" + request_record.fileName.split(fileFormat)[0] + "_processed" + fileFormat
         my_file = open(input_file_name, 'r')
         lines = my_file.readlines()
